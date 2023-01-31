@@ -19,12 +19,12 @@ contract PFSPLoanWallet {
         uint256 approvals;
         bool sent;
     }
-    mapping(uint256 => Transfer) public transfers;
+    mapping(uint256 => Transfer) public transfersTx;
     mapping(address => mapping(uint256 => bool)) public approvals;
 
     // approver1 usually is the team, while approver2 is usually the SP
     constructor(address _approver1, address _approver2) {
-        approvers = [approver1, approver2];
+        approvers = [_approver1, _approver2];
         admin = _approver1;
         approver1 = _approver1;
         approver2 = _approver2;
@@ -38,25 +38,28 @@ contract PFSPLoanWallet {
             amount <= address(this).balance,
             "Not enough funds in the contract yet"
         );
-        transfers[counter] = Transfer(counter, amount, 2, false);
+        transfersTx[counter] = Transfer(counter, amount, 2, false);
         counter++;
     }
 
     function approveTransfer(uint256 id) external onlyApprover {
-        require(transfers[id].sent == false, "transfer has already been sent");
+        require(
+            transfersTx[id].sent == false,
+            "transfer has already been sent"
+        );
         require(
             approvals[msg.sender][id] == false,
             "cannot approve transfer twice"
         );
         require(
-            transfers[id].amount <= address(this).balance,
+            transfersTx[id].amount <= address(this).balance,
             "Not enough funds in the contract yet"
         );
 
         approvals[msg.sender][id] = true;
-        transfers[id].approvals++;
+        transfersTx[id].approvals++;
 
-        if (transfers[id].approvals >= quorum) {
+        if (transfersTx[id].approvals >= quorum) {
             transferFund(id);
         }
     }
@@ -67,10 +70,10 @@ contract PFSPLoanWallet {
     }
 
     function transferFund(uint256 id) internal {
-        transfers[id].sent = true;
-        uint256 amount1 = transfers[id].amount *
+        transfersTx[id].sent = true;
+        uint256 amount1 = transfersTx[id].amount *
             (approver1Percentage / denominator);
-        uint256 amount2 = transfers[id].amount *
+        uint256 amount2 = transfersTx[id].amount *
             (approver2Percentage / denominator);
         //   address payable toApprover1 = payable(approver1);
         //   address payable toApprover2 = payable(approver2);
@@ -88,7 +91,7 @@ contract PFSPLoanWallet {
     }
 
     function getTransfers(uint256 _id) external view returns (Transfer memory) {
-        return transfers[_id];
+        return transfersTx[_id];
     }
 
     function getBalance() public view returns (uint256) {
