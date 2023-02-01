@@ -101,8 +101,10 @@ contract MinerAPI {
     /// @notice A proposal must be submitted by the owner, and takes effect after approval of both the proposed beneficiary and current beneficiary, if applicable, any current beneficiary that has time and quota remaining.
     /// @notice See FIP-0029, https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0029.md
     function change_beneficiary(
+        bytes memory target,
         MinerTypes.ChangeBeneficiaryParams memory params
     ) public {
+        require(target.length >= 0);
         if (!isBeneficiarySet) {
             CommonTypes.BeneficiaryTerm memory term = CommonTypes
                 .BeneficiaryTerm(params.new_quota, 0, params.new_expiration);

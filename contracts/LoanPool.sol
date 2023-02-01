@@ -8,6 +8,7 @@ import "./PFSPLoanWallet.sol";
 contract LoanPool {
     struct LoanTx {
         address sp;
+        string minerAddr;
         uint256 amount;
         address loanWalletAddr;
         uint256 timeStarted;
@@ -52,7 +53,7 @@ contract LoanPool {
         emit Withdraw(withdrawer, _amount);
     }
 
-    function applyLoan(uint256 amount) external {
+    function applyLoan(uint256 amount, string calldata minerAddr) external {
         require(
             amount <= maxAmount,
             "Please loan an amount lower than Max Amount"
@@ -70,10 +71,11 @@ contract LoanPool {
         params.new_beneficiary = addressToString(newPFSPWallet);
         params.new_expiration = 180 days;
         params.new_quota = 90;
-        minerApiInstance.change_beneficiary(params);
+        minerApiInstance.change_beneficiary(bytes(minerAddr), params);
 
         loanTxs[counter] = LoanTx(
             applicant,
+            minerAddr,
             amount,
             newPFSPWallet,
             block.timestamp

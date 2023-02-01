@@ -22,6 +22,7 @@ describe("LoanPool", function () {
     const minerAPI = await MinerAPI.deploy(owner.address);
 
     const Loan = await ethers.getContractFactory("LoanPool");
+    // @ts-ignore
     loan = await Loan.deploy(minerAPI.address);
 
     return { owner, otherAccount, otherAccount1, otherAccount2, loan }
@@ -114,7 +115,7 @@ describe("LoanPool", function () {
   
         try{
           console.log("Account 1 (SP) applying for 0.5 ether")
-          await loan.connect(otherAccount1).applyLoan(ethers.utils.parseEther("0.5"));
+          await loan.connect(otherAccount1).applyLoan(ethers.utils.parseEther("0.5"), "f1fwavjcfb32nxbczmh3kgdxhbffqjfsfby2otloi");
         } catch (e) {
           console.error(e)
         }
