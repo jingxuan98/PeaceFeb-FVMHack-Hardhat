@@ -65,7 +65,7 @@ contract PFSPLoanWallet {
     }
 
     function adminTransferAfterLock(uint256 id) external onlyAdmin {
-        require(timeCreated + lockedPeriod <= block.timestamp);
+        require(timeCreated + lockedPeriod <= block.timestamp, "Haven't Reach 180 days");
         transferFund(id);
     }
 

@@ -129,5 +129,53 @@ describe("LoanPool", function () {
         expect((Number(adminBalanceAfter) - Number(adminBalanceBefore))/ Math.pow(10, 18)).to.be.closeTo(Number(transferTxAmount) * 0.5/ Math.pow(10, 18), 2)
     });
     
+    it("Should able to transfer by Admin with just own approval after 180 days", async function () {
+
+        let initialTransferIdx = await loanWallet.counter();
+
+        console.log("Initial Transfer Index", initialTransferIdx)
+        try{
+            await loanWallet.createTransfer(ethers.utils.parseEther("0.1"))
+        } catch (e) {
+            console.error(e)
+        }
+
+        try{
+            await loanWallet.approveTransfer(initialTransferIdx)
+            console.log("Only Admin approved tx")
+        } catch (e) {
+            console.error(e)
+        }
+
+        const DAYS_180_IN_SECS = 180 * 24 * 60 * 60;
+        const fast180Days = (await time.latest()) + DAYS_180_IN_SECS;
+        let adminBalanceBefore = await ethers.provider.getBalance(owner.address)
+        let spBalanceBefore = await ethers.provider.getBalance(otherAccount.address)
+
+        await time.increaseTo(fast180Days);
+        console.log("time Now", fast180Days)
+        try{
+            console.log("Admin transfer after 180 days")
+            await loanWallet.adminTransferAfterLock(initialTransferIdx)
+        } catch (e) {
+            console.error(e)
+        }
+
+        let transferPendingTx = await loanWallet.transfersTx(initialTransferIdx)
+        console.log("Loantx", transferPendingTx)
+        let transferTxAmount = transferPendingTx.amount
+        console.log("Transfer Tx Details", transferTxAmount)
+
+        let adminBalanceAfter = await ethers.provider.getBalance(owner.address)
+        let spBalanceAfter = await ethers.provider.getBalance(otherAccount.address)
+
+        console.log("SP Diff", (Number(spBalanceAfter) - Number(spBalanceBefore))/ Math.pow(10, 18))
+        console.log("Admin Diff", (Number(adminBalanceAfter) - Number(adminBalanceBefore))/ Math.pow(10, 18))
+
+        expect((Number(spBalanceAfter) - Number(spBalanceBefore))/ Math.pow(10, 18)).to.be.above(Number(0.045) / Math.pow(10, 18))
+        expect((Number(adminBalanceAfter) - Number(adminBalanceBefore))/ Math.pow(10, 18)).to.be.above(Number(0.045) / Math.pow(10, 18))
+        expect((Number(spBalanceAfter) - Number(spBalanceBefore))/ Math.pow(10, 18)).to.be.closeTo(Number(transferTxAmount) * 0.5/ Math.pow(10, 18), 2)
+        expect((Number(adminBalanceAfter) - Number(adminBalanceBefore))/ Math.pow(10, 18)).to.be.closeTo(Number(transferTxAmount) * 0.5/ Math.pow(10, 18), 2)    
+    });
   });
 });
