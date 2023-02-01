@@ -38,7 +38,7 @@ contract PFSPLoanWallet {
             amount <= address(this).balance,
             "Not enough funds in the contract yet"
         );
-        transfersTx[counter] = Transfer(counter, amount, 2, false);
+        transfersTx[counter] = Transfer(counter, amount, 0, false);
         counter++;
     }
 
@@ -71,10 +71,10 @@ contract PFSPLoanWallet {
 
     function transferFund(uint256 id) internal {
         transfersTx[id].sent = true;
-        uint256 amount1 = transfersTx[id].amount *
-            (approver1Percentage / denominator);
-        uint256 amount2 = transfersTx[id].amount *
-            (approver2Percentage / denominator);
+        uint256 amount1 = (transfersTx[id].amount * approver1Percentage) /
+            denominator;
+        uint256 amount2 = (transfersTx[id].amount * approver2Percentage) /
+            denominator;
         //   address payable toApprover1 = payable(approver1);
         //   address payable toApprover2 = payable(approver2);
         //   toApprover1.transfer(amount1);
@@ -83,6 +83,10 @@ contract PFSPLoanWallet {
         // Experiment new way of sending value
         (bool success1, ) = approver1.call{value: amount1}("");
         (bool success2, ) = approver2.call{value: amount2}("");
+
+        // (bool success1, ) = approver1.call{value: 100000000000000000}("");
+        // (bool success2, ) = approver2.call{value: 100000000000000000}("");
+
         require(success1 && success2, "tx failed");
     }
 
@@ -111,11 +115,10 @@ contract PFSPLoanWallet {
     }
 
     modifier onlyApprover() {
-        bool allowed = false;
-        if (msg.sender == approver1 || msg.sender == approver2) {
-            allowed = true;
-        }
-        require(allowed == true, "only approver allowed");
+        require(
+            msg.sender == approver1 || msg.sender == approver2,
+            "only approver allowed"
+        );
         _;
     }
 

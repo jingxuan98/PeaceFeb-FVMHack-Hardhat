@@ -19,7 +19,7 @@ describe("LoanPool", function () {
     [owner, otherAccount, otherAccount1, otherAccount2] = await ethers.getSigners();
 
     const LoanWallet = await ethers.getContractFactory("PFSPLoanWallet");
-    loanWallet = await LoanWallet.deploy(owner.address, otherAccount1.address);
+    loanWallet = await LoanWallet.deploy(owner.address, otherAccount.address);
 
     return { owner, otherAccount, otherAccount1, otherAccount2, loanWallet }
   }
@@ -54,13 +54,13 @@ describe("LoanPool", function () {
 
       expect(await loanWallet.admin()).to.equal(owner.address);
       expect(await loanWallet.approver1()).to.equal(owner.address);
-      expect(await loanWallet.approver2()).to.equal(otherAccount1.address);
+      expect(await loanWallet.approver2()).to.equal(otherAccount.address);
       let approvalList = await loanWallet.getApprovers();
       console.log("ApprovalList", approvalList)
 
     });
 
-    it("Should able to fundPool with 1 ethers", async function () {
+    it("Should able to create a Transfer Tx on Pending for Approvers", async function () {
 
         let initialTransferIdx = await loanWallet.counter();
 
@@ -76,6 +76,57 @@ describe("LoanPool", function () {
         console.log("Transfer Tx Details", transferPendingTx)
 
         expect(transferIdxAfter).to.equal(Number(initialTransferIdx) + 1)
+    });
+
+    it("Should able for approvers to approver Transfer Tx and transfer the tx (50% to admin, 50% to SP account)", async function () {
+
+        let initialTransferIdx = await loanWallet.counter();
+
+        try{
+            // fund pool
+            await owner.sendTransaction({
+                to: loanWallet.address,
+                value: ethers.utils.parseEther("1"), // Sends exactly 1.0 ether
+              })
+            
+            // check contract balance
+            let contractBalance = await ethers.provider.getBalance(loanWallet.address)
+            console.log("Contract Balance after fund", contractBalance)
+
+            // creating PendingTransfer tx
+            await loanWallet.createTransfer(ethers.utils.parseEther("0.1"))
+        } catch (e) {
+            console.error(e)
+        }
+
+        let adminBalanceBefore = await ethers.provider.getBalance(owner.address)
+        let spBalanceBefore = await ethers.provider.getBalance(otherAccount.address)
+
+        console.log("Transfer Index Now for Transfer", initialTransferIdx)
+        
+        try{
+            await loanWallet.approveTransfer(initialTransferIdx)
+            console.log("Admin approved tx")
+            await loanWallet.connect(otherAccount).approveTransfer(initialTransferIdx)
+            console.log("SP approved tx")
+        } catch (e) {
+            console.error(e)
+        }
+
+        let transferPendingTx = await loanWallet.transfersTx(initialTransferIdx)
+        console.log("Loantx", transferPendingTx)
+        let transferTxAmount = transferPendingTx.amount
+        console.log("Transfer Tx Details", transferTxAmount)
+
+        let adminBalanceAfter = await ethers.provider.getBalance(owner.address)
+        let spBalanceAfter = await ethers.provider.getBalance(otherAccount.address)
+
+        console.log("SP Diff", (Number(spBalanceAfter) - Number(spBalanceBefore))/ Math.pow(10, 18))
+        console.log("Admin Diff", (Number(adminBalanceAfter) - Number(adminBalanceBefore))/ Math.pow(10, 18))
+
+
+        expect((Number(spBalanceAfter) - Number(spBalanceBefore))/ Math.pow(10, 18)).to.be.closeTo(Number(transferTxAmount) * 0.5/ Math.pow(10, 18), 2)
+        expect((Number(adminBalanceAfter) - Number(adminBalanceBefore))/ Math.pow(10, 18)).to.be.closeTo(Number(transferTxAmount) * 0.5/ Math.pow(10, 18), 2)
     });
     
   });
