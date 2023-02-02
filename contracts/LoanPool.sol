@@ -88,7 +88,6 @@ contract LoanPool {
     }
 
     function fundPool() external payable {
-        // TODO: maybe can add a part call the Treasury Contract to add funder or update the funder amount
         if (funders[msg.sender] == 0) {
             funders[msg.sender] = msg.value;
         } else {

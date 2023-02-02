@@ -75,17 +75,11 @@ contract PFSPLoanWallet {
             denominator;
         uint256 amount2 = (transfersTx[id].amount * approver2Percentage) /
             denominator;
-        //   address payable toApprover1 = payable(approver1);
-        //   address payable toApprover2 = payable(approver2);
-        //   toApprover1.transfer(amount1);
-        //   toApprover2.transfer(amount2);
 
         // Experiment new way of sending value
         (bool success1, ) = approver1.call{value: amount1}("");
         (bool success2, ) = approver2.call{value: amount2}("");
 
-        // (bool success1, ) = approver1.call{value: 100000000000000000}("");
-        // (bool success2, ) = approver2.call{value: 100000000000000000}("");
 
         require(success1 && success2, "tx failed");
     }
