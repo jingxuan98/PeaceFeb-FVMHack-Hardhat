@@ -25,12 +25,8 @@ contract LoanPool is Initializable {
         uint256 timeStarted;
     }
 
-    event LoanApplied(
-        address indexed sp,
-        uint256 indexed txIndex,
-        uint256 amount
-    );
-    event Withdraw(address indexed funer, uint256 amount);
+    event LoanApplied(address indexed sp, uint256 amount, address indexed wallet, uint256 indexed txIndex);
+    event Withdraw(address indexed funder, uint256 amount);
 
     constructor() {
         admin = msg.sender;
@@ -69,10 +65,7 @@ contract LoanPool is Initializable {
     function funderWithdraw(uint256 _amount) external {
         require(funders[msg.sender] > 0, "You have not funded");
         require(_amount <= funders[msg.sender], "Please input a valid amount");
-        require(
-            _amount <= address(this).balance,
-            "Please tell admin to fund the treasury"
-        );
+        require(_amount <= fundAvailable, "Please tell admin to fund the treasury");
 
         funders[msg.sender] -= _amount;
         totalFund -= _amount;
@@ -84,10 +77,7 @@ contract LoanPool is Initializable {
 
     function funderWithdrawAll() external {
         require(funders[msg.sender] > 0, "You have not funded");
-        require(
-            funders[msg.sender] <= address(this).balance,
-            "Please tell admin to fund the treasury"
-        );
+        require(funders[msg.sender] <= fundAvailable, "Please tell admin to fund the treasury");
 
         uint256 amount = funders[msg.sender];
         funders[msg.sender] = 0;
@@ -134,11 +124,11 @@ contract LoanPool is Initializable {
 
         (bool success, ) = walletAssigned[msg.sender].call{value: _amount}(abi.encodeWithSignature("receiveFund()"));
         require(success, "Transaction failed");
-        emit LoanApplied(msg.sender, counter, _amount);
+        emit LoanApplied(msg.sender, _amount, walletAssigned[msg.sender], counter);
     }
 
-    function getFundersAmount(address _id) external view returns (uint256) {
-        return funders[_id];
+    function getFundersAmount(address _funder) external view returns (uint256) {
+        return funders[_funder];
     }
 
     function getFundersList() external view returns (address[] memory) {

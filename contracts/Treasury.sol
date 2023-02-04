@@ -21,13 +21,26 @@ contract Treasury {
         _;
     }
 
-    function setAllocateInterval(uint256 _allocateInterval) external onlyAdmin {
-        allocateInterval = _allocateInterval;
-    }
+	function claim(uint256 amount) public payable {
+        if (totalInterest > 0) allocateInterest();
 
-    function setLoanPoolAddress(LoanPool _loanPool) external onlyAdmin {
-        loanPool = _loanPool;
-    }
+		require(loanPool.funders(msg.sender) != 0, "not a depositor");
+		require(interestBalance[msg.sender] > amount, "no interest earned");
+
+		interestBalance[msg.sender] -= amount;
+		payable(msg.sender).transfer(amount);
+	}
+
+	function claimAll() public payable {
+        if (totalInterest > 0) allocateInterest();
+
+		require(loanPool.funders(msg.sender) != 0, "not a depositor");
+		require(interestBalance[msg.sender] > 0, "no interest earned");
+
+		uint256 amount = interestBalance[msg.sender];
+		interestBalance[msg.sender] = 0;
+		payable(msg.sender).transfer(amount);
+	}
 
     function allocateInterest() public {
         uint256 precision = 18;
@@ -47,34 +60,21 @@ contract Treasury {
         }
         totalInterest = 0;
     }
-
-    function getAllocation(address addr) public view returns (uint256) {
-        return interestBalance[addr];
+    
+    function setAllocateInterval(uint256 _allocateInterval) external onlyAdmin {
+        allocateInterval = _allocateInterval;
     }
 
-	function claimAll() public payable {
-        if (totalInterest > 0) allocateInterest();
-
-		require(loanPool.funders(msg.sender) != 0, "not a depositor");
-		require(interestBalance[msg.sender] > 0, "no interest earned");
-
-		uint256 amount = interestBalance[msg.sender];
-		interestBalance[msg.sender] = 0;
-		payable(msg.sender).transfer(amount);
-	}
-
-	function claim(uint256 amount) public payable {
-        if (totalInterest > 0) allocateInterest();
-
-		require(loanPool.funders(msg.sender) != 0, "not a depositor");
-		require(interestBalance[msg.sender] > amount, "no interest earned");
-
-		interestBalance[msg.sender] -= amount;
-		payable(msg.sender).transfer(amount);
-	}
+    function setLoanPoolAddress(LoanPool _loanPool) external onlyAdmin {
+        loanPool = _loanPool;
+    }
 
     function getFundersList() external view returns (address[] memory) {
         return loanPool.getFundersList();
+    }
+
+    function getAllocation(address addr) public view returns (uint256) {
+        return interestBalance[addr];
     }
 
     function receiveInterest() public payable {

@@ -37,15 +37,33 @@ contract LotusWallet {
         _;
     }
 
-    function setSplitRewardsInterval(uint256 _splitRewardsInterval) external onlyAdmin {
-        splitRewardsInterval = _splitRewardsInterval;
+    function claimRewards(uint256 _amount) onlyApplicant external {
+        if(totalRewards > 0) splitRewards();
+        require(applicantRewards > 0 && _amount < applicantRewards, "Not enough rewards to claim");
+
+        applicantRewards -= _amount;
+        payable(msg.sender).transfer(_amount);
     }
 
-    function setRewardsShare(uint256 _funderShare, uint256 _applicantShare) external onlyAdmin {
-        // input share as percentage.
-        require(_funderShare + _applicantShare == 100, "total must be 100");
-        funderShare = _funderShare;
-        applicantShare = _applicantShare;
+    function claimRewardsAll() onlyApplicant external {
+        if(totalRewards > 0) splitRewards();
+        require(applicantRewards > 0, "Not enough rewards to claim");
+
+        uint256 amount = applicantRewards;
+        applicantRewards = 0;
+        payable(msg.sender).transfer(amount);
+    }
+
+    function checkRewards() external view returns (uint256) {
+        return applicantRewards;
+    }
+
+    function pledgeCollateral(uint256 _collateral) external onlyApplicant {
+        // Add function to pledge collateral.
+    }
+
+    function pledgeStorageDealCollateral(uint256 _collateral) external onlyApplicant {
+        // Add function to pledge storage deal collateral.
     }
 
     function splitRewards() public {
@@ -65,36 +83,40 @@ contract LotusWallet {
         require(success, "Transaction failed");
     }
 
-    function checkRewards() external view returns (uint256) {
-        return applicantRewards;
+    function setSplitRewardsInterval(uint256 _splitRewardsInterval) external onlyAdmin {
+        splitRewardsInterval = _splitRewardsInterval;
     }
 
-    function claimRewards(uint256 _amount) onlyApplicant external {
-        if(totalRewards > 0) splitRewards();
-        require(applicantRewards > 0 && _amount < applicantRewards, "Not enough rewards to claim");
-
-        applicantRewards -= _amount;
-        payable(msg.sender).transfer(_amount);
+    function setRewardsShare(uint256 _funderShare, uint256 _applicantShare) external onlyAdmin {
+        // input share as percentage.
+        require(_funderShare + _applicantShare == 100, "total must be 100");
+        funderShare = _funderShare;
+        applicantShare = _applicantShare;
     }
 
-    function claimRewardsAll() onlyApplicant external {
-        if(totalRewards > 0) splitRewards();
-        require(applicantRewards > 0, "Not enough rewards to claim");
-
-        uint256 amount = applicantRewards;
-        applicantRewards = 0;
-        payable(msg.sender).transfer(amount);
+    function changeApplicantAddress(address _applicant) external onlyAdmin {
+        // if SP is not acting good, take control of future block rewards.
+        applicant = _applicant;
     }
 
-    function pledgeCollateral(uint256 _collateral) external onlyApplicant {
-        // Add function to pledge collateral.
-        totalFund -= _collateral;
-    }
+    function sendBackFund(uint256 _amount) external onlyAdmin {
+        require(totalFund > 0 && _amount < totalFund, "no enough fund to send back");
+        totalFund -= _amount;
+        fundReturnedRecord += _amount;
 
-    function pledgeStorageDealCollateral(uint256 _collateral) external onlyApplicant {
-        // Add function to pledge storage deal collateral.
-        totalFund -= _collateral;
+        (bool success, ) = loanPool.call{value: _amount}(abi.encodeWithSignature("receiveBackFund()"));
+        require(success, "failed to send back fund");
     }
+    
+    function sendBackFundAll() external onlyAdmin {
+        require(totalFund > 0, "not enough fund to send back");
+        uint amount = totalFund;
+        totalFund = 0;
+        fundReturnedRecord += amount;
+        
+        (bool success, ) = loanPool.call{value: amount}(abi.encodeWithSignature("receiveBackFund()"));
+        require(success, "failed to send back fund");
+    } 
 
     function receivePledgedCollateral() external payable {
         // Add releasing address into whitelist as function guard.
@@ -114,23 +136,4 @@ contract LotusWallet {
         totalFund += msg.value;
         fundReceivedRecord += msg.value;
     }
-
-    function sendBackFund(uint256 _amount) external onlyAdmin {
-        require(totalFund > 0 && _amount < totalFund, "no enough fund to send back");
-        totalFund -= _amount;
-        fundReturnedRecord += _amount;
-
-        (bool success, ) = loanPool.call{value: _amount}(abi.encodeWithSignature("receiveBackFund()"));
-        require(success, "failed to send back fund");
-    }
-    
-    function sendBackFundAll() external onlyAdmin {
-        require(totalFund > 0, "no enough fund to send back");
-        uint amount = totalFund;
-        totalFund = 0;
-        fundReturnedRecord += amount;
-        
-        (bool success, ) = loanPool.call{value: amount}(abi.encodeWithSignature("receiveBackFund()"));
-        require(success, "failed to send back fund");
-    } 
 }
