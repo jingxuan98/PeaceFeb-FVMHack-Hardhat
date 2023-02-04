@@ -2,7 +2,7 @@ const { expect } = require("chai");
 const { loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
 const { ethers } = require("hardhat");
 
-describe("LoanPool Contract", function () {
+describe("PeaceFeb Undercollateralised Loan Protocol", function () {
   async function deployTokenFixture() {
     const [owner, addr1, addr2] = await ethers.getSigners();
 
@@ -212,7 +212,7 @@ describe("LoanPool Contract", function () {
       const walletContract = await ethers.getContractFactory("LotusWallet");
       const wallet = await walletContract.attach(walletAddress);
 
-      await wallet.setRewardsShare(70, 30); //setting 30% for applicant share
+      await wallet.setRewardsShare(70, 30); // setting 30% for applicant share
       await wallet.receiveBlockRewards({ value: ethers.utils.parseEther("20") });
 
       expect(Number(ethers.utils.formatEther(await wallet.applicantRewards()))).to.be.equal(6); // 30% of 20 = 6
@@ -221,7 +221,7 @@ describe("LoanPool Contract", function () {
 
   describe("Treasury Tests", function () {
     it("Should receive rewards from wallets", async function () {
-      const { loanPool, treasury, owner, addr1 } = await loadFixture(deployTokenFixture);
+      const { loanPool, treasury, addr1 } = await loadFixture(deployTokenFixture);
       await loanPool.initialize(treasury.address);
       await loanPool.fundPool({ value: ethers.utils.parseEther("123") });
       await loanPool.connect(addr1).applyLoan(ethers.utils.parseEther("10"));
@@ -230,26 +230,46 @@ describe("LoanPool Contract", function () {
       const walletContract = await ethers.getContractFactory("LotusWallet");
       const wallet = await walletContract.attach(walletAddress);
 
-      await wallet.setRewardsShare(70, 30); //setting 70% for funders share
+      await wallet.setRewardsShare(70, 30); // setting 70% for funders share
       await wallet.receiveBlockRewards({ value: ethers.utils.parseEther("20") });
 
       expect(Number(ethers.utils.formatEther(await treasury.totalInterestEarned()))).to.be.equal(14); // 70% of 20 = 14
     });
 
     it("Should receive correct rewards share for each funder", async function () {
-      const { loanPool, treasury, owner, addr1, addr2 } = await loadFixture(deployTokenFixture);
+      const { loanPool, treasury, addr1, addr2 } = await loadFixture(deployTokenFixture);
       await loanPool.initialize(treasury.address);
       await loanPool.fundPool({ value: ethers.utils.parseEther("60") });
-      await loanPool.connect(addr1).fundPool({ value: ethers.utils.parseEther("40") });
+      await loanPool.connect(addr1).fundPool({ value: ethers.utils.parseEther("40") }); // let addr1 to gain 40% share of entire loanPool.
       await loanPool.connect(addr2).applyLoan(ethers.utils.parseEther("10"));
 
       const walletAddress = await loanPool.walletAssigned(addr2.address);
       const walletContract = await ethers.getContractFactory("LotusWallet");
       const wallet = await walletContract.attach(walletAddress);
 
-      await wallet.receiveBlockRewards({ value: ethers.utils.parseEther("20") });
+      await wallet.receiveBlockRewards({ value: ethers.utils.parseEther("20") }); // 50% of 20 = 10 rewards to funders
 
-      expect(Number(ethers.utils.formatEther(await treasury.interestBalance(addr1.address)))).to.be.equal(4); // 50% of 20 = 10, then 40% of 10 = 4
+      expect(Number(ethers.utils.formatEther(await treasury.interestBalance(addr1.address)))).to.be.equal(4); // 40% of 10 = 4 to addr1
+    });
+
+    it("Should able to claim rewards for each funder", async function () {
+      const { loanPool, treasury, owner, addr1, addr2 } = await loadFixture(deployTokenFixture);
+      await loanPool.initialize(treasury.address);
+      await loanPool.fundPool({ value: ethers.utils.parseEther("60") });
+      await loanPool.connect(addr1).fundPool({ value: ethers.utils.parseEther("40") }); // let addr1 to gain 40% share of entire loanPool.
+      await loanPool.connect(addr2).applyLoan(ethers.utils.parseEther("10"));
+
+      const walletAddress = await loanPool.walletAssigned(addr2.address);
+      const walletContract = await ethers.getContractFactory("LotusWallet");
+      const wallet = await walletContract.attach(walletAddress);
+
+      await wallet.receiveBlockRewards({ value: ethers.utils.parseEther("20") }); // 50% of 20 = 10 rewards to funders
+
+      const balanceBefore = Number(ethers.utils.formatEther(await ethers.provider.getBalance(addr1.address)));
+      await treasury.connect(addr1).claim(ethers.utils.parseEther("2")); // withdrawing 2 FIL.
+      const balance = Number(ethers.utils.formatEther(await ethers.provider.getBalance(addr1.address))) - balanceBefore;
+
+      expect(balance).to.be.at.least(1); 
     });
   });
 });

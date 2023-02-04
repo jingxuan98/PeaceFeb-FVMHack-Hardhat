@@ -11,6 +11,8 @@ contract Treasury {
     uint256 public allocateInterval = 1 * 1e18; //default to 1 FIL
     mapping(address => uint256) public interestBalance;
 
+    event InterestAllocated(address _funder, uint256 _allocation, uint256 _totalInterest);
+
     constructor(address contractAddr) {
         loanPool = LoanPool(contractAddr);
         admin = msg.sender;
@@ -24,7 +26,7 @@ contract Treasury {
 	function claim(uint256 amount) public payable {
         if (totalInterest > 0) allocateInterest();
 
-		require(loanPool.funders(msg.sender) != 0, "not a depositor");
+		require(loanPool.funders(msg.sender) > 0, "not a depositor");
 		require(interestBalance[msg.sender] > amount, "no interest earned");
 
 		interestBalance[msg.sender] -= amount;
@@ -34,7 +36,7 @@ contract Treasury {
 	function claimAll() public payable {
         if (totalInterest > 0) allocateInterest();
 
-		require(loanPool.funders(msg.sender) != 0, "not a depositor");
+		require(loanPool.funders(msg.sender) > 0, "not a depositor");
 		require(interestBalance[msg.sender] > 0, "no interest earned");
 
 		uint256 amount = interestBalance[msg.sender];
@@ -54,19 +56,23 @@ contract Treasury {
             uint256 allocation = (((deposit * (10**precision)) / totalDeposit) *
                 totalInterest) / (10**precision);
             interestBalance[addr] += allocation;
+
+            emit InterestAllocated(addr, allocation, interestBalance[addr]);
+
             unchecked {
                 i++;
             }
         }
         totalInterest = 0;
     }
-    
+
     function setAllocateInterval(uint256 _allocateInterval) external onlyAdmin {
         allocateInterval = _allocateInterval;
     }
 
-    function setLoanPoolAddress(LoanPool _loanPool) external onlyAdmin {
-        loanPool = _loanPool;
+    function transferOwnership(address _admin) external onlyAdmin {
+        require(_admin != address(0x0), "no zero address");
+        admin = _admin;
     }
 
     function getFundersList() external view returns (address[] memory) {

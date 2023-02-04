@@ -37,14 +37,6 @@ contract LoanPool is Initializable {
         _;
     }
 
-    function initialize(address _treasury) external initializer onlyAdmin {
-        treasury = _treasury;
-    }
-
-    function changeMaxLoanableAmount(uint256 _maxAmount) external onlyAdmin {
-        maxAmount = _maxAmount;
-    }
-
     function fundPool() external payable {
         funders[msg.sender] += msg.value;
         totalFund += msg.value;
@@ -125,6 +117,23 @@ contract LoanPool is Initializable {
         (bool success, ) = walletAssigned[msg.sender].call{value: _amount}(abi.encodeWithSignature("receiveFund()"));
         require(success, "Transaction failed");
         emit LoanApplied(msg.sender, _amount, walletAssigned[msg.sender], counter);
+    }
+
+    function initialize(address _treasury) external initializer onlyAdmin {
+        treasury = _treasury;
+    }
+
+    function changeMaxLoanableAmount(uint256 _maxAmount) external onlyAdmin {
+        maxAmount = _maxAmount;
+    }
+
+    function transferOwnership(address _admin) external onlyAdmin {
+        require(_admin != address(0x0), "no zero address");
+        admin = _admin;
+    }
+
+    function getLoanTxnByAddress(address _address) external view returns (uint256[] memory) {
+        return loanTxsByAddress[_address];
     }
 
     function getFundersAmount(address _funder) external view returns (uint256) {

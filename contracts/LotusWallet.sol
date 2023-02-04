@@ -83,6 +83,11 @@ contract LotusWallet {
         require(success, "Transaction failed");
     }
 
+    function transferOwnership(address _admin) external onlyAdmin {
+        require(_admin != address(0x0), "no zero address");
+        admin = _admin;
+    }
+
     function setSplitRewardsInterval(uint256 _splitRewardsInterval) external onlyAdmin {
         splitRewardsInterval = _splitRewardsInterval;
     }
