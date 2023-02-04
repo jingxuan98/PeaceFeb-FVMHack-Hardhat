@@ -7,6 +7,7 @@
   "dependencies": {
     "@openzeppelin/contracts": "^4.8.1",
     "@zondax/filecoin-solidity": "^0.4.0-beta.1",
+    "dotenv": "^16.0.3",
     "solc": "^0.8.18"
   },
   "description": "This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a script that deploys that contract.",
