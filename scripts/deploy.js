@@ -18,8 +18,9 @@ async function main() {
 	await loanPool.initialize(treasury.address);
 	console.log("Initialized with address:", treasury.address);
 
-	// await loanPool.fundPool({ value: ethers.utils.parseEther("0.1") });
-	// console.log("Funded 0.1 FIL");
+	// const txn = await loanPool.fundPool({ value: ethers.utils.parseEther("0.1") });
+	// await txn.wait();
+	// console.log("Funded 0.1 FIL", txn);
 
 	// console.log(ethers.utils.formatEther(await loanPool.getFundersAmount(deployer.address)));
   }
