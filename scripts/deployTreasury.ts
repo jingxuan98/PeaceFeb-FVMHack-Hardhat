@@ -3,11 +3,8 @@ import { ethers } from "hardhat";
 const main = async () => {
   const [ deployer, wallet2 ] = await ethers.getSigners();
 
-  const MinerAPI = await ethers.getContractFactory("MinerAPI");
-  const minerAPI = await MinerAPI.deploy(deployer.address);
-
   const loanPoolFactory = await ethers.getContractFactory("LoanPool");
-  const loanPool = await loanPoolFactory.deploy(minerAPI.address);
+  const loanPool = await loanPoolFactory.deploy();
   await loanPool.deployed();
 
   const treasuryFactory = await ethers.getContractFactory("Treasury");
@@ -30,26 +27,24 @@ const main = async () => {
   const amount4 = ethers.utils.formatEther(await loanPool.totalFund());
   console.log(`total deposited ${amount4} FIL\n`);
 
-  const amount3 = "15";
+  const amount3 = "2";
   const txn3 = await treasury.receiveInterest({ value: ethers.utils.parseEther(amount3) });
   await txn3.wait();
   console.log(`received ${amount3} FIL interest\n`);
 
   const txn4 = await treasury.getAllocation(deployer.address);
-  const txn8 = await treasury.totalInterest();
   console.log("wallet before claim:      ", ethers.utils.formatEther(await deployer.getBalance()), "FIL");
   console.log("wallet allocation:        ", ethers.utils.formatEther(await txn4), "FIL");
-  console.log("In contract before claim: ", ethers.utils.formatEther(await txn8), "FIL\n");
+  console.log("In contract before claim: ", ethers.utils.formatEther(await ethers.provider.getBalance(treasury.address)), "FIL\n");
 
-  const txn5 = await treasury.claim();
+  const txn5 = await treasury.claimAll();
   await txn5.wait();
   console.log("wallet after claim:       ", ethers.utils.formatEther(await deployer.getBalance()), "FIL");
 
   const txn6 = await treasury.getAllocation(deployer.address);
   console.log("wallet allocation:        ", ethers.utils.formatEther(await txn6), "FIL");
 
-  const txn7 = await treasury.totalInterest();
-  console.log("In contract after claim:  ", ethers.utils.formatEther(await txn7), "FIL");
+  console.log("In contract after claim:  ", ethers.utils.formatEther(await ethers.provider.getBalance(treasury.address)), "FIL");
 }
 
 const runMain = async () => {
