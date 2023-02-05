@@ -6,8 +6,8 @@ import "./LotusWallet.sol";
 
 contract LoanPool is Initializable {
     address public treasury;
-    uint256 public counter = 0;
-    uint256 public maxAmount = 10 * 1e18; // Default to 10 FIL
+    uint256 public counter;
+    uint256 public maxAmount;
     address public admin;
     uint256 public totalFund;
     uint256 public fundAvailable;
@@ -30,6 +30,7 @@ contract LoanPool is Initializable {
 
     constructor() {
         admin = msg.sender;
+        maxAmount = 10 * 1e18; // Default to 10 FIL
     }
 
     modifier onlyAdmin() {

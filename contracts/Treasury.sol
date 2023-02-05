@@ -8,7 +8,7 @@ contract Treasury {
     address public admin;
     uint256 public totalInterest;
     uint256 public totalInterestEarned;
-    uint256 public allocateInterval = 1 * 1e18; //default to 1 FIL
+    uint256 public allocateInterval;
     mapping(address => uint256) public interestBalance;
 
     event InterestAllocated(address _funder, uint256 _allocation, uint256 _totalInterest);
@@ -16,6 +16,7 @@ contract Treasury {
     constructor(address contractAddr) {
         loanPool = LoanPool(contractAddr);
         admin = msg.sender;
+        allocateInterval = 1 * 1e18; //default to 1 FIL
     }
 
     modifier onlyAdmin() {

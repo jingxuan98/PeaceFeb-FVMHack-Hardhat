@@ -9,9 +9,9 @@ contract LotusWallet {
     uint256 public totalFund;
     uint256 public totalRewards;
     uint256 public applicantRewards;
-    uint256 public applicantShare = 50; //default to 50:50
-    uint256 public funderShare = 50; //default to 50:50
-    uint256 public splitRewardsInterval = 5 * 1e18; //default to 5 FIL
+    uint256 public applicantShare;
+    uint256 public funderShare;
+    uint256 public splitRewardsInterval;
     uint256 public fundReceivedRecord;
     uint256 public fundReturnedRecord;
 
@@ -25,6 +25,9 @@ contract LotusWallet {
         treasury = _treasury;
         admin = _admin;
         applicant = _applicant;
+        applicantShare = 50; //default to 50:50
+        funderShare = 50; //default to 50:50
+        splitRewardsInterval = 5 * 1e18; //default to 5 FIL
     }
 
     modifier onlyAdmin() {

@@ -2,6 +2,7 @@ const private_key = process.env.PRIVATE_KEY;
 const deployer = new ethers.Wallet(private_key, ethers.provider);
 const loanPoolAddress = "0xfc17Eb6d20Cd687e493Fa113930c2FCb157a014F";
 const treasuryAddress = "0xEE0095cD876A8Fe365EcFCc7163b3F28123C6898";
+const walletAddress = "0x5dd37DA2df8BfDa061D62F3aEd24594a83e8dA4a";
 
 async function main() {
 	console.log("Connecting contracts with the account:", deployer.address);
@@ -15,7 +16,11 @@ async function main() {
     const treasury = await treasuryContract.attach(treasuryAddress);
 	console.log("Treasury address:", treasury.address);
 
-	console.log(await loanPool.getFundersList());
+    const walletContract = await ethers.getContractFactory("LotusWallet", deployer);
+    const wallet = await walletContract.attach(walletAddress);
+	console.log("Wallet address:", wallet.address);
+
+	console.log(await wallet.applicantRewards());
 }
 
 main()
