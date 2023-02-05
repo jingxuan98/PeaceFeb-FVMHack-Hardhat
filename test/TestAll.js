@@ -26,14 +26,14 @@ describe("PeaceFeb Undercollateralised Loan Protocol", function () {
 
     it("Should only initialize once", async function () {
       const { loanPool, treasury } = await loadFixture(deployTokenFixture);
-      await loanPool.initialize(treasury.address);
+      await loanPool.initialize(treasury.address, "NoPasswordNoEntry");
 
-      await expect(loanPool.initialize(treasury.address)).to.be.reverted;
+      await expect(loanPool.initialize(treasury.address, "NoPasswordNoEntry")).to.be.reverted;
     });
 
     it("Should fail if others try to initialize", async function () {
       const { loanPool, treasury, addr1 } = await loadFixture(deployTokenFixture);
-      await expect(loanPool.connect(addr1).initialize(treasury.address)).to.be.reverted;
+      await expect(loanPool.connect(addr1).initialize(treasury.address, "NoPasswordNoEntry")).to.be.reverted;
     });
 
 
@@ -91,14 +91,14 @@ describe("PeaceFeb Undercollateralised Loan Protocol", function () {
       const { loanPool, treasury, addr1 } = await loadFixture(deployTokenFixture);
       await loanPool.fundPool({ value: ethers.utils.parseEther("123") });
 
-      await expect(loanPool.connect(addr1).applyLoan(ethers.utils.parseEther("10"))).to.be.reverted;
+      await expect(loanPool.connect(addr1).applyLoan(ethers.utils.parseEther("10"), "NoPasswordNoEntry")).to.be.reverted;
     });
 
     it("Should able to applyLoan", async function () {
       const { loanPool, treasury, addr1 } = await loadFixture(deployTokenFixture);
-      await loanPool.initialize(treasury.address);
+      await loanPool.initialize(treasury.address, "NoPasswordNoEntry");
       await loanPool.fundPool({ value: ethers.utils.parseEther("123") });
-      await loanPool.connect(addr1).applyLoan(ethers.utils.parseEther("10"));
+      await loanPool.connect(addr1).applyLoan(ethers.utils.parseEther("10"), "NoPasswordNoEntry");
 
       // expect(await loanPool.getApplicantListTotal()).to.be.equal(1);
 
@@ -111,9 +111,9 @@ describe("PeaceFeb Undercollateralised Loan Protocol", function () {
 
     it("Should reduce fundAvailable by exact amount after applyLoan", async function () {
       const { loanPool, treasury, addr1 } = await loadFixture(deployTokenFixture);
-      await loanPool.initialize(treasury.address);
+      await loanPool.initialize(treasury.address, "NoPasswordNoEntry");
       await loanPool.fundPool({ value: ethers.utils.parseEther("123") });
-      await loanPool.connect(addr1).applyLoan(ethers.utils.parseEther("10"));
+      await loanPool.connect(addr1).applyLoan(ethers.utils.parseEther("10"), "NoPasswordNoEntry");
 
       const balance = ethers.utils.formatEther(await loanPool.totalFund()) - 10;
 
@@ -125,9 +125,9 @@ describe("PeaceFeb Undercollateralised Loan Protocol", function () {
   describe("LotusWallet Tests", function () {
     it("Should able to receive loan fund", async function () {
       const { loanPool, treasury, addr1 } = await loadFixture(deployTokenFixture);
-      await loanPool.initialize(treasury.address);
+      await loanPool.initialize(treasury.address, "NoPasswordNoEntry");
       await loanPool.fundPool({ value: ethers.utils.parseEther("123") });
-      await loanPool.connect(addr1).applyLoan(ethers.utils.parseEther("10"));
+      await loanPool.connect(addr1).applyLoan(ethers.utils.parseEther("10"), "NoPasswordNoEntry");
 
       const walletAddress = await loanPool.walletAssigned(addr1.address);
       const walletContract = await ethers.getContractFactory("LotusWallet");
@@ -138,9 +138,9 @@ describe("PeaceFeb Undercollateralised Loan Protocol", function () {
 
     it("Should able to receive block rewards", async function () {
       const { loanPool, treasury, addr1 } = await loadFixture(deployTokenFixture);
-      await loanPool.initialize(treasury.address);
+      await loanPool.initialize(treasury.address, "NoPasswordNoEntry");
       await loanPool.fundPool({ value: ethers.utils.parseEther("123") });
-      await loanPool.connect(addr1).applyLoan(ethers.utils.parseEther("10"));
+      await loanPool.connect(addr1).applyLoan(ethers.utils.parseEther("10"), "NoPasswordNoEntry");
 
       const walletAddress = await loanPool.walletAssigned(addr1.address);
       const walletContract = await ethers.getContractFactory("LotusWallet");
@@ -153,9 +153,9 @@ describe("PeaceFeb Undercollateralised Loan Protocol", function () {
 
     it("Should enable applicant to claim block rewards", async function () {
       const { loanPool, treasury, addr1 } = await loadFixture(deployTokenFixture);
-      await loanPool.initialize(treasury.address);
+      await loanPool.initialize(treasury.address, "NoPasswordNoEntry");
       await loanPool.fundPool({ value: ethers.utils.parseEther("123") });
-      await loanPool.connect(addr1).applyLoan(ethers.utils.parseEther("10"));
+      await loanPool.connect(addr1).applyLoan(ethers.utils.parseEther("10"), "NoPasswordNoEntry");
 
       const walletAddress = await loanPool.walletAssigned(addr1.address);
       const walletContract = await ethers.getContractFactory("LotusWallet");
@@ -172,9 +172,9 @@ describe("PeaceFeb Undercollateralised Loan Protocol", function () {
 
     it("Should block unauthorised person to claim block rewards", async function () {
       const { loanPool, treasury, addr1, addr2 } = await loadFixture(deployTokenFixture);
-      await loanPool.initialize(treasury.address);
+      await loanPool.initialize(treasury.address, "NoPasswordNoEntry");
       await loanPool.fundPool({ value: ethers.utils.parseEther("123") });
-      await loanPool.connect(addr1).applyLoan(ethers.utils.parseEther("10"));
+      await loanPool.connect(addr1).applyLoan(ethers.utils.parseEther("10"), "NoPasswordNoEntry");
 
       const walletAddress = await loanPool.walletAssigned(addr1.address);
       const walletContract = await ethers.getContractFactory("LotusWallet");
@@ -187,9 +187,9 @@ describe("PeaceFeb Undercollateralised Loan Protocol", function () {
 
     it("Should enable admin to sendBackFund to LoanPool", async function () {
       const { loanPool, treasury, addr1 } = await loadFixture(deployTokenFixture);
-      await loanPool.initialize(treasury.address);
+      await loanPool.initialize(treasury.address, "NoPasswordNoEntry");
       await loanPool.fundPool({ value: ethers.utils.parseEther("123") });
-      await loanPool.connect(addr1).applyLoan(ethers.utils.parseEther("10"));
+      await loanPool.connect(addr1).applyLoan(ethers.utils.parseEther("10"), "NoPasswordNoEntry");
 
       const walletAddress = await loanPool.walletAssigned(addr1.address);
       const walletContract = await ethers.getContractFactory("LotusWallet");
@@ -204,9 +204,9 @@ describe("PeaceFeb Undercollateralised Loan Protocol", function () {
 
     it("Should enable admin to change rewards share", async function () {
       const { loanPool, treasury, addr1 } = await loadFixture(deployTokenFixture);
-      await loanPool.initialize(treasury.address);
+      await loanPool.initialize(treasury.address, "NoPasswordNoEntry");
       await loanPool.fundPool({ value: ethers.utils.parseEther("123") });
-      await loanPool.connect(addr1).applyLoan(ethers.utils.parseEther("10"));
+      await loanPool.connect(addr1).applyLoan(ethers.utils.parseEther("10"), "NoPasswordNoEntry");
 
       const walletAddress = await loanPool.walletAssigned(addr1.address);
       const walletContract = await ethers.getContractFactory("LotusWallet");
@@ -222,9 +222,9 @@ describe("PeaceFeb Undercollateralised Loan Protocol", function () {
   describe("Treasury Tests", function () {
     it("Should receive rewards from wallets", async function () {
       const { loanPool, treasury, addr1 } = await loadFixture(deployTokenFixture);
-      await loanPool.initialize(treasury.address);
+      await loanPool.initialize(treasury.address, "NoPasswordNoEntry");
       await loanPool.fundPool({ value: ethers.utils.parseEther("123") });
-      await loanPool.connect(addr1).applyLoan(ethers.utils.parseEther("10"));
+      await loanPool.connect(addr1).applyLoan(ethers.utils.parseEther("10"), "NoPasswordNoEntry");
 
       const walletAddress = await loanPool.walletAssigned(addr1.address);
       const walletContract = await ethers.getContractFactory("LotusWallet");
@@ -238,10 +238,10 @@ describe("PeaceFeb Undercollateralised Loan Protocol", function () {
 
     it("Should receive correct rewards share for each funder", async function () {
       const { loanPool, treasury, addr1, addr2 } = await loadFixture(deployTokenFixture);
-      await loanPool.initialize(treasury.address);
+      await loanPool.initialize(treasury.address, "NoPasswordNoEntry");
       await loanPool.fundPool({ value: ethers.utils.parseEther("60") });
       await loanPool.connect(addr1).fundPool({ value: ethers.utils.parseEther("40") }); // let addr1 to gain 40% share of entire loanPool.
-      await loanPool.connect(addr2).applyLoan(ethers.utils.parseEther("10"));
+      await loanPool.connect(addr2).applyLoan(ethers.utils.parseEther("10"), "NoPasswordNoEntry");
 
       const walletAddress = await loanPool.walletAssigned(addr2.address);
       const walletContract = await ethers.getContractFactory("LotusWallet");
@@ -254,10 +254,10 @@ describe("PeaceFeb Undercollateralised Loan Protocol", function () {
 
     it("Should able to claim rewards for each funder", async function () {
       const { loanPool, treasury, owner, addr1, addr2 } = await loadFixture(deployTokenFixture);
-      await loanPool.initialize(treasury.address);
+      await loanPool.initialize(treasury.address, "NoPasswordNoEntry");
       await loanPool.fundPool({ value: ethers.utils.parseEther("60") });
       await loanPool.connect(addr1).fundPool({ value: ethers.utils.parseEther("40") }); // let addr1 to gain 40% share of entire loanPool.
-      await loanPool.connect(addr2).applyLoan(ethers.utils.parseEther("10"));
+      await loanPool.connect(addr2).applyLoan(ethers.utils.parseEther("10"), "NoPasswordNoEntry");
 
       const walletAddress = await loanPool.walletAssigned(addr2.address);
       const walletContract = await ethers.getContractFactory("LotusWallet");

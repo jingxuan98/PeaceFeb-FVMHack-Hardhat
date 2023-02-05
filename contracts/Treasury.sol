@@ -16,7 +16,7 @@ contract Treasury {
     constructor(address contractAddr) {
         loanPool = LoanPool(contractAddr);
         admin = msg.sender;
-        allocateInterval = 1 * 1e18; //default to 1 FIL
+        allocateInterval = 1 * 1e17; //default to 0.1 FIL
     }
 
     modifier onlyAdmin() {

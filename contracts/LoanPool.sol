@@ -6,8 +6,9 @@ import "./LotusWallet.sol";
 
 contract LoanPool is Initializable {
     address public treasury;
+    bytes32 private password;
     uint256 public counter;
-    uint256 public maxAmount;
+    uint256 public maxLoanableAmount;
     address public admin;
     uint256 public totalFund;
     uint256 public fundAvailable;
@@ -17,6 +18,7 @@ contract LoanPool is Initializable {
     mapping(address => address) public walletAssigned;
     mapping(uint256 => LoanTx) public loanTxs;
     mapping(address => uint256[]) public loanTxsByAddress;
+    mapping(address => uint256) public maxAmountByApplicant;
 
     struct LoanTx {
         address sp;
@@ -30,7 +32,7 @@ contract LoanPool is Initializable {
 
     constructor() {
         admin = msg.sender;
-        maxAmount = 10 * 1e18; // Default to 10 FIL
+        maxLoanableAmount = 10 * 1e18; // Default to 10 FIL
     }
 
     modifier onlyAdmin() {
@@ -81,10 +83,11 @@ contract LoanPool is Initializable {
         emit Withdraw(msg.sender, amount);
     }
 
-    function applyLoan(uint256 _amount) external {
-        // add KYC here
-        require(_amount <= maxAmount, "Please loan an amount lower than Max Amount");
+    function applyLoan(uint256 _amount, string calldata _password) external {
+        require(keccak256(abi.encodePacked(_password)) == password, "Please request password from frontend"); // Guard at frontend, verification in contract.
+        require(_amount <= maxLoanableAmount, "Please loan an amount lower than Max Amount");
         require(_amount <= fundAvailable, "Not enough fund available");
+        require(_amount + maxAmountByApplicant[msg.sender] <= maxLoanableAmount, "Exceeded max loanable limit");
 
         // checks if applicant applied before.
         bool applicantExist = false;
@@ -113,6 +116,7 @@ contract LoanPool is Initializable {
         loanTxsByAddress[msg.sender].push(counter);
         counter++;
 
+        maxAmountByApplicant[msg.sender] += _amount;
         fundAvailable -= _amount;
 
         (bool success, ) = walletAssigned[msg.sender].call{value: _amount}(abi.encodeWithSignature("receiveFund()"));
@@ -120,17 +124,29 @@ contract LoanPool is Initializable {
         emit LoanApplied(msg.sender, _amount, walletAssigned[msg.sender], counter);
     }
 
-    function initialize(address _treasury) external initializer onlyAdmin {
+    function initialize(address _treasury, string calldata _password) external initializer onlyAdmin {
         treasury = _treasury;
+        password = keccak256(abi.encodePacked(_password));
     }
 
-    function changeMaxLoanableAmount(uint256 _maxAmount) external onlyAdmin {
-        maxAmount = _maxAmount;
+    function changeMaxLoanableAmount(uint256 _maxLoanableAmount) external onlyAdmin {
+        maxLoanableAmount = _maxLoanableAmount;
     }
 
     function transferOwnership(address _admin) external onlyAdmin {
         require(_admin != address(0x0), "no zero address");
         admin = _admin;
+    }
+
+    function setPassword(string calldata _password) external onlyAdmin {
+        password = keccak256(abi.encodePacked(_password));
+    }
+
+    function checkPassword(string calldata _password) external view returns (bool) {
+        if (password == keccak256(abi.encodePacked(_password))) {
+            return true;
+        }
+        return false;
     }
 
     function getLoanTxnByAddress(address _address) external view returns (uint256[] memory) {

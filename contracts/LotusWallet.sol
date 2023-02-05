@@ -14,6 +14,7 @@ contract LotusWallet {
     uint256 public splitRewardsInterval;
     uint256 public fundReceivedRecord;
     uint256 public fundReturnedRecord;
+    uint256 public rewardsReceivedRecord;
 
     event SplitRewards(uint256 _totalRewardsBeforeSplit, uint256 _applicantRewards, uint256 _funderRewards);
 
@@ -27,7 +28,7 @@ contract LotusWallet {
         applicant = _applicant;
         applicantShare = 50; //default to 50:50
         funderShare = 50; //default to 50:50
-        splitRewardsInterval = 5 * 1e18; //default to 5 FIL
+        splitRewardsInterval = 5 * 1e17; //default to 0.5 FIL
     }
 
     modifier onlyAdmin() {
@@ -61,28 +62,20 @@ contract LotusWallet {
         return applicantRewards;
     }
 
-    function pledgeCollateral(uint256 _collateral) external onlyApplicant {
-        // Add function to pledge collateral.
-    }
-
-    function pledgeStorageDealCollateral(uint256 _collateral) external onlyApplicant {
-        // Add function to pledge storage deal collateral.
-    }
-
     function splitRewards() public {
         require(totalRewards > 0, "No rewards to split");
 
         uint256 precision = 2;
-        uint256 applicantRewardsBeforeSplit = applicantRewards;
-        applicantRewards += (applicantShare * (10**precision) / 100)
-                            * totalRewards / (10**precision);
-        uint256 funderRewards = (funderShare * (10**precision) / 100)
+        uint256 applicantRewardsShare = (applicantShare * (10**precision) / 100)
+                                        * totalRewards / (10**precision);
+        uint256 funderRewardsShare = (funderShare * (10**precision) / 100)
                                  * totalRewards / (10**precision);
+        applicantRewards += applicantRewardsShare;
 
-        emit SplitRewards(totalRewards, applicantRewardsBeforeSplit, funderRewards);            
+        emit SplitRewards(totalRewards, applicantRewards, funderRewardsShare);            
         totalRewards = 0;
 
-        (bool success, ) = treasury.call{value: funderRewards}(abi.encodeWithSignature("receiveInterest()"));
+        (bool success, ) = treasury.call{value: funderRewardsShare}(abi.encodeWithSignature("receiveInterest()"));
         require(success, "Transaction failed");
     }
 
@@ -96,14 +89,13 @@ contract LotusWallet {
     }
 
     function setRewardsShare(uint256 _funderShare, uint256 _applicantShare) external onlyAdmin {
-        // input share as percentage.
-        require(_funderShare + _applicantShare == 100, "total must be 100");
+        require(_funderShare + _applicantShare == 100, "total must be 100"); // input share as percentage.
         funderShare = _funderShare;
         applicantShare = _applicantShare;
     }
 
+    // if SP is not acting good, take control of future block rewards.
     function changeApplicantAddress(address _applicant) external onlyAdmin {
-        // if SP is not acting good, take control of future block rewards.
         applicant = _applicant;
     }
 
@@ -127,13 +119,14 @@ contract LotusWallet {
     } 
 
     function receivePledgedCollateral() external payable {
-        // Add releasing address into whitelist as function guard.
+        // Can add releasing address into whitelist as function guard.
         totalFund += msg.value;
     }
 
     function receiveBlockRewards() external payable {
-        // Add releasing address into whitelist as function guard.
+        // Can add releasing address into whitelist as function guard.
         totalRewards += msg.value;
+        rewardsReceivedRecord += msg.value;
         
         // if rewards are flowing in real time after vesting, interval is used to reduce function calls to save gas.
         if (totalRewards > splitRewardsInterval) splitRewards();

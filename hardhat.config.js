@@ -8,7 +8,6 @@ module.exports = {
     hyperspace: {
       chainID: 3141,
       url: "https://api.hyperspace.node.glif.io/rpc/v1",
-      accounts: [process.env.PRIVATE_KEY]
     }
   }
 };
