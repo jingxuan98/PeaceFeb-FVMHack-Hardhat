@@ -1,137 +1,179 @@
 // SPDX-License-Identifier: unlicensed
-pragma solidity ^0.8.1;
+pragma solidity ^0.8.18;
 
-import {MinerAPI} from "./MinerAPI.sol";
-import {MinerTypes} from "./types/MinerTypes.sol";
-import "./PFSPLoanWallet.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import "./LotusWallet.sol";
 
-contract LoanPool {
+contract LoanPool is Initializable {
+    address public treasury;
+    bytes32 private password;
+    uint256 public counter;
+    uint256 public maxLoanableAmount;
+    address public admin;
+    uint256 public totalFund;
+    uint256 public fundAvailable;
+    address[] public fundersArr;
+    address[] public applicantsArr;
+    mapping(address => uint256) public funders;
+    mapping(address => address) public walletAssigned;
+    mapping(uint256 => LoanTx) public loanTxs;
+    mapping(address => uint256[]) public loanTxsByAddress;
+    mapping(address => uint256) public maxAmountByApplicant;
+
     struct LoanTx {
         address sp;
-        string minerAddr;
         uint256 amount;
         address loanWalletAddr;
         uint256 timeStarted;
     }
 
-    address public minerApiAddress;
-    uint256 public counter = 0;
-    uint256 public maxAmount = 10 ether; // Only 10 just for testing
-    address public admin;
-    uint256 public totalFund;
-    address[] public fundersArr;
-    mapping(address => uint256) public funders;
-    mapping(uint256 => LoanTx) public loanTxs;
-    event LoanApplied(
-        address indexed sp,
-        uint256 indexed txIndex,
-        uint256 amount
-    );
-    event Withdraw(address indexed funer, uint256 amount);
+    event LoanApplied(address indexed sp, uint256 amount, address indexed wallet, uint256 indexed txIndex);
+    event Withdraw(address indexed funder, uint256 amount);
 
-    constructor(address _minerApiAddress) {
+    constructor() {
         admin = msg.sender;
-        minerApiAddress = _minerApiAddress;
+        maxLoanableAmount = 10 * 1e18; // Default to 10 FIL
+    }
+
+    modifier onlyAdmin() {
+        require (msg.sender == admin, "only admin");
+        _;
+    }
+
+    function fundPool() external payable {
+        funders[msg.sender] += msg.value;
+        totalFund += msg.value;
+        fundAvailable += msg.value;
+
+        bool funderExist = false;
+        for (uint256 i = 0; i < fundersArr.length;) {
+            if (fundersArr[i] == msg.sender) {
+                funderExist = true;
+            }
+            unchecked {
+                i++;
+            }
+        }
+        if (funderExist == false) fundersArr.push(msg.sender);
     }
 
     function funderWithdraw(uint256 _amount) external {
         require(funders[msg.sender] > 0, "You have not funded");
         require(_amount <= funders[msg.sender], "Please input a valid amount");
-        require(
-            _amount <= address(this).balance,
-            "Please tell admin to fund the treasury"
-        );
+        require(_amount <= fundAvailable, "Please tell admin to fund the treasury");
 
         funders[msg.sender] -= _amount;
         totalFund -= _amount;
+        fundAvailable -= _amount;
 
-        // TODO: maybe can add a part call the Treasury Contract to add funder or update the funder amount
-
-        address withdrawer = msg.sender;
-        (bool success, ) = withdrawer.call{value: _amount}("");
-        require(success, "tx failed");
-        emit Withdraw(withdrawer, _amount);
+        payable(msg.sender).transfer(_amount);
+        emit Withdraw(msg.sender, _amount);
     }
 
-    function applyLoan(uint256 amount, string calldata minerAddr) external {
-        require(
-            amount <= maxAmount,
-            "Please loan an amount lower than Max Amount"
-        );
-        require(
-            amount <= address(this).balance,
-            "Please loan an amount lower than Max Amount"
-        );
-        address applicant = msg.sender;
+    function funderWithdrawAll() external {
+        require(funders[msg.sender] > 0, "You have not funded");
+        require(funders[msg.sender] <= fundAvailable, "Please tell admin to fund the treasury");
 
-        MinerAPI minerApiInstance = MinerAPI(minerApiAddress);
-        MinerTypes.ChangeBeneficiaryParams memory params;
-        // beneficiary changed to our newly created LoanWallet
-        address newPFSPWallet = address(new PFSPLoanWallet(admin, applicant));
-        params.new_beneficiary = addressToString(newPFSPWallet);
-        params.new_expiration = 180 days;
-        params.new_quota = 90;
-        minerApiInstance.change_beneficiary(bytes(minerAddr), params);
+        uint256 amount = funders[msg.sender];
+        funders[msg.sender] = 0;
+        totalFund -= amount;
+        fundAvailable -= amount;
 
-        loanTxs[counter] = LoanTx(
-            applicant,
-            minerAddr,
-            amount,
-            newPFSPWallet,
-            block.timestamp
-        );
-
-        (bool success, ) = applicant.call{value: amount}("");
-        require(success, "tx failed");
-        counter++;
-        emit LoanApplied(applicant, counter, amount);
+        payable(msg.sender).transfer(amount);
+        emit Withdraw(msg.sender, amount);
     }
 
-    function fundPool() external payable {
-        if (funders[msg.sender] == 0) {
-            funders[msg.sender] = msg.value;
-        } else {
-            funders[msg.sender] += msg.value;
-        }
+    function applyLoan(uint256 _amount, string calldata _password) external {
+        require(keccak256(abi.encodePacked(_password)) == password, "Please request password from frontend"); // Guard at frontend, verification in contract.
+        require(_amount <= maxLoanableAmount, "Please loan an amount lower than Max Amount");
+        require(_amount <= fundAvailable, "Not enough fund available");
+        require(_amount + maxAmountByApplicant[msg.sender] <= maxLoanableAmount, "Exceeded max loanable limit");
 
-        totalFund += msg.value;
-
-        bool funderExist = false;
-        for (uint256 i = 0; i < fundersArr.length; i++) {
-            if (fundersArr[i] == msg.sender) {
-                funderExist = true;
+        // checks if applicant applied before.
+        bool applicantExist = false;
+        for (uint256 i = 0; i < applicantsArr.length;) {
+            if (applicantsArr[i] == msg.sender) {
+                applicantExist = true;
+            }
+            unchecked {
+                i++;
             }
         }
 
-        if (funderExist == false) fundersArr.push(msg.sender);
+        // only create new wallet for new applicant.
+        if (applicantExist == false) {
+            applicantsArr.push(msg.sender);
+            LotusWallet newWallet = new LotusWallet(address(this), treasury, admin, msg.sender);
+            walletAssigned[msg.sender] = address(newWallet);
+        }
+
+        loanTxs[counter] = LoanTx(
+            msg.sender,
+            _amount,
+            walletAssigned[msg.sender],
+            block.timestamp
+        );
+        loanTxsByAddress[msg.sender].push(counter);
+        counter++;
+
+        maxAmountByApplicant[msg.sender] += _amount;
+        fundAvailable -= _amount;
+
+        (bool success, ) = walletAssigned[msg.sender].call{value: _amount}(abi.encodeWithSignature("receiveFund()"));
+        require(success, "Transaction failed");
+        emit LoanApplied(msg.sender, _amount, walletAssigned[msg.sender], counter);
     }
 
-    function getFundersAmount(address _id) external view returns (uint256) {
-        return funders[_id];
+    function initialize(address _treasury, string calldata _password) external initializer onlyAdmin {
+        treasury = _treasury;
+        password = keccak256(abi.encodePacked(_password));
+    }
+
+    function changeMaxLoanableAmount(uint256 _maxLoanableAmount) external onlyAdmin {
+        maxLoanableAmount = _maxLoanableAmount;
+    }
+
+    function transferOwnership(address _admin) external onlyAdmin {
+        require(_admin != address(0x0), "no zero address");
+        admin = _admin;
+    }
+
+    function setPassword(string calldata _password) external onlyAdmin {
+        password = keccak256(abi.encodePacked(_password));
+    }
+
+    function checkPassword(string calldata _password) external view returns (bool) {
+        if (password == keccak256(abi.encodePacked(_password))) {
+            return true;
+        }
+        return false;
+    }
+
+    function getLoanTxnByAddress(address _address) external view returns (uint256[] memory) {
+        return loanTxsByAddress[_address];
+    }
+
+    function getFundersAmount(address _funder) external view returns (uint256) {
+        return funders[_funder];
     }
 
     function getFundersList() external view returns (address[] memory) {
         return fundersArr;
     }
 
+    function getApplicantList() external view returns (address[] memory) {
+        return applicantsArr;
+    }
+
     function getFundersListTotal() external view returns (uint256) {
         return fundersArr.length;
     }
 
-    function addressToString(address x) internal pure returns (string memory) {
-        bytes memory s = new bytes(40);
-        for (uint256 i = 0; i < 20; i++) {
-            bytes1 b = bytes1(uint8(uint256(uint160(x)) / (2**(8 * (19 - i)))));
-            bytes1 hi = bytes1(uint8(b) / 16);
-            bytes1 lo = bytes1(uint8(b) - 16 * uint8(hi));
-            s[2 * i] = char(hi);
-            s[2 * i + 1] = char(lo);
-        }
-        return string(s);
+    function getApplicantListTotal() external view returns (uint256) {
+        return applicantsArr.length;
     }
 
-    function char(bytes1 b) internal pure returns (bytes1 c) {
-        if (uint8(b) < 10) return bytes1(uint8(b) + 0x30);
-        else return bytes1(uint8(b) + 0x57);
+    function receiveBackFund() external payable {
+        fundAvailable += msg.value;
     }
 }
